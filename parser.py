@@ -68,8 +68,8 @@ def compute_rpn_val(rpn_exp):
         else:
             a = float(stack.pop())
             b = float(stack.pop())
-            if token == '-':    stack.append(a-b)
-            if token == '+':    stack.append(a+b)
+            if token == '-':    stack.append(b-a)
+            if token == '+':    stack.append(b+a)
             if token == '*':    stack.append(b*a)
             if token == '/':    stack.append(b/a)
     if len(stack) != 1:
