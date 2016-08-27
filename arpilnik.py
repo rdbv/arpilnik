@@ -1,7 +1,7 @@
 from struct import *
-from parser import operators
+from parser import operators, is_valid_varname
 
-# Basic EL64 header
+# Basic ELF64 header
 # Only for now, ELF soon will be rewritten
 class Elf64_File:
     file_data = b'' 
@@ -10,7 +10,7 @@ class Elf64_File:
 
     def __init__(self, code = ""):
         self.code = code
-        self.ep = self.basic_addr + 0x40 + 0x38 # entry point
+        self.ep = self.basic_addr + 0x40 + 0x38*2 # entry point
         # E_IDENT
         self.file_data += b'\x7fELF'  
         self.file_data += b"\x02\x01\x01\x00"
@@ -25,7 +25,7 @@ class Elf64_File:
         self.file_data += pack("<i", 0)        # flags
         self.file_data += pack("<h", 0x40)     # ehsize
         self.file_data += pack("<h", 0x38)     # phentsize
-        self.file_data += pack("<h", 1)        # phnum
+        self.file_data += pack("<h", 2)        # phnum
         self.file_data += pack("<h", 0)        # shentsize
         self.file_data += pack("<h", 0)        # shnum
         self.file_data += pack("<h", 0)        # shstrndx
@@ -37,6 +37,15 @@ class Elf64_File:
         self.file_data += pack("<q", self.basic_addr)       # paddr
         self.file_data += pack("<q", 0x40+0x38+len(code))   # filesz
         self.file_data += pack("<q", 0x40+0x38+len(code))   # memsz
+        self.file_data += pack("<q", 0)                     # align
+        # PHDR_DATA (VARMEM)
+        self.file_data += pack("<i", 1)                     # type
+        self.file_data += pack("<i", 6)                     # flags
+        self.file_data += pack("<q", 0)                     # offset
+        self.file_data += pack("<q", self.basic_addr + 0x10000000)       # vaddr
+        self.file_data += pack("<q", self.basic_addr)       # paddr
+        self.file_data += pack("<q", 0)   # filesz
+        self.file_data += pack("<q", 0x100)   # memsz
         self.file_data += pack("<q", 0)                     # align
 
     def get_header(self):
@@ -93,9 +102,20 @@ class Code_Generator_x86_64:
         self.elf_file = Elf64_File()
         self.data = b''
         self.exit_seq = self.asm.pop_reg32('bx') + b'\xb8\x01\x00\x00\x00' + b'\xcd\x80'
+        self.var_list = []
+        self.var_begin_addr = 0x90000000 
+
+    def compile_line(self, line):
+        self.compile_exp(line)        
+
+    def add_exit_seq(self):
+        self.data += self.exit_seq
 
     def compile_exp(self, rpn_exp):
-        for token in rpn_exp:
+        print("Compiling:", rpn_exp)
+        i = 0
+        while i < len(rpn_exp):
+            token = rpn_exp[i]
             if token in operators:
                 self.data += self.asm.pop_reg32('ax')
                 self.data += self.asm.pop_reg32('bx')
@@ -106,16 +126,28 @@ class Code_Generator_x86_64:
                     self.data += self.asm.add_reg_reg64('bx', 'ax')
                     self.data += self.asm.push_reg32('bx')
             else:
-                # Digit
-                self.data += self.asm.push_imm_32(int(token))
-        
-        self.data += self.asm.pop_reg32('bx')
-        #self.data += self.exit_seq
+                # Assignment of <var>=
+                if is_valid_varname(token) and rpn_exp[i+1] == '=':
+                    varname = token
+                    var_vaddr = self.var_begin_addr + (len(self.var_list) * 8)
+                    var_val = int(rpn_exp[i+2])
+                    self.var_list.append([varname, var_vaddr, var_val])
+                    self.print_varlist()
+                    i += 3
+                    continue
+                else:
+                    # Digit
+                    self.data += self.asm.push_imm_32(int(token))
+            i += 1        
 
     def get_raw_code(self):
         return self.data
 
     def get_code(self):
         return self.elf_file.get_header() + self.data
+
+    def print_varlist(self):
+        for v in self.var_list:
+            print(v[0], hex(v[1]), v[2])
 
 

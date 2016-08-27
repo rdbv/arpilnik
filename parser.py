@@ -11,7 +11,7 @@ operators = {
 }
 
 def split_expression(exp):
-    splitted = re.split("([(+-/*)])", exp.replace(" ", ""))
+    splitted = re.split("([(+-/*=)])", exp.replace(" ", ""))
     splitted = [x for x in splitted if x]
     return splitted
 
@@ -83,4 +83,7 @@ def valid_infix_exp(infix_exp):
         print("[Syntax]: '(' count is not equal to ')' count")
         return 0
     return 1
+
+def is_valid_varname(name):
+    return re.match("[_A-Za-z][_a-zA-Z0-9]*$",name)
 

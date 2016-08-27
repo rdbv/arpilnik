@@ -1,16 +1,10 @@
 from parser import *
 from arpilnik import *
+
 from unicorn import *
 from unicorn.x86_const import *
 
 # main
-
-sample_exp_list = [
-        "a*10+15",
-        "dupa*10+5+fun(4)",
-        "10+24*c-17*(d*24+8+g)",
-        "24+a*n/2-7"
-    ]
 
 def step(emu, addr, size, user_data):
     rip = emu.reg_read(UC_X86_REG_RIP)
@@ -49,7 +43,7 @@ def get_test_exps():
         print(os)
 
 OBJDUMP_CMD = b"clear;objdump -b binary -m i386:x64-32 -M intel -D main \
-        --start-address=0x00 | more"
+        --start-address=0xb0 | more"
 
 def write_fifo():
     fifo = open("in0.fifo", "wb")
@@ -57,23 +51,29 @@ def write_fifo():
     fifo.close()
 
 def main():
-    infix_exp = "2+5+2"
-    rpn_exp = infix_to_rpn(infix_exp)
 
-    print(rpn_exp, compute_rpn_val(rpn_exp))
-   
+    f = [
+         #'a=20',
+         #'2+a'
+         'a=5',
+         'b=32',
+
+        ]
+
     gen = Code_Generator_x86_64()
     gen.init_binary()
-    gen.compile_exp(rpn_exp)
-    
+
+    for line in f:
+        rpn = infix_to_rpn(line)
+        gen.compile_line(rpn)
+        print(rpn)
+
+    gen.add_exit_seq()
+
     write_fifo()
     
-    test_emu(gen.get_raw_code())
-
     out_file = open("main", "wb")
-    out_file.write(gen.get_raw_code() + b'\x90\x90')
-    
-    
+    out_file.write(gen.get_code())    
 
 if __name__ == "__main__":
     main()
