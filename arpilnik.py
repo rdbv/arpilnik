@@ -87,11 +87,28 @@ class Assembler_x86_64:
     def push_imm_32(self, val):
         return b'\x68' + pack("<i", val)
 
+    def push_addr64(self, reg):
+        ops_push = {'ax' : b'\x30', 'cx' : b'\x31', 'dx' : b'\x32', 'bx' : b'\x33'}
+        return b'\xff' + ops_push[reg]
+
     def add_reg_reg64(self, dest, src):
         return self.rex_w + b'\x01' + self.modrm(REGISTER_MOD, self.regtab[src], self.regtab[dest])
     
     def sub_reg_reg64(self, dest, src):
         return self.rex_w + b'\x29' + self.modrm(REGISTER_MOD, self.regtab[src], self.regtab[dest])
+    
+    def mov_reg_imm64(self, dest, imm):
+        ops_mov = {'ax' : b'\xb8', 'cx' : b'\xb9', 'dx' : b'\xba', 'bx' : b'\xbb'}
+        return self.rex_w + ops_mov[dest] + pack("<Q", imm)
+
+    def mov_reg_reg64(self, dest, src):
+        return self.rex_w + b'\x89' + self.modrm(REGISTER_MOD, self.regtab[src], self.regtab[dest])
+    
+    def mov_regmem8_reg64(self, dest, src, dis):
+        out = self.rex_w + b'\x89'
+        out += self.modrm(DISPLACEMENT_BYTE_MOD, self.regtab[src], self.regtab[dest])
+        out += pack("<B", dis) 
+        return out 
 
     def modrm(self, mod, reg, rm):
         return pack("<B", mod << 6 | reg << 3 | rm)
@@ -112,7 +129,6 @@ class Code_Generator_x86_64:
         self.data += self.exit_seq
 
     def compile_exp(self, rpn_exp):
-        print("Compiling:", rpn_exp)
         i = 0
         while i < len(rpn_exp):
             token = rpn_exp[i]
@@ -130,11 +146,19 @@ class Code_Generator_x86_64:
                 if is_valid_varname(token) and rpn_exp[i+1] == '=':
                     varname = token
                     var_vaddr = self.var_begin_addr + (len(self.var_list) * 8)
+                    var_num = len(self.var_list)
                     var_val = int(rpn_exp[i+2])
                     self.var_list.append([varname, var_vaddr, var_val])
-                    self.print_varlist()
+                    self.data += self.asm.mov_reg_imm64('ax', var_vaddr)
+                    self.data += self.asm.mov_reg_imm64('bx', var_val)
+                    self.data += self.asm.mov_regmem8_reg64('ax', 'bx', 0)
                     i += 3
                     continue
+                elif is_valid_varname(token):
+                    # Use of variable
+                    var = self.get_variable_data(token)
+                    self.data += self.asm.mov_reg_imm64('ax', var[1])
+                    self.data += self.asm.push_addr64('ax')
                 else:
                     # Digit
                     self.data += self.asm.push_imm_32(int(token))
@@ -145,6 +169,12 @@ class Code_Generator_x86_64:
 
     def get_code(self):
         return self.elf_file.get_header() + self.data
+
+    def get_variable_data(self, varname):
+        for v in self.var_list:
+            if varname == v[0]:
+                return v
+        raise RuntimeError("Nieee maaa!")
 
     def print_varlist(self):
         for v in self.var_list:

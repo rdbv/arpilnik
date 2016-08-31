@@ -1,3 +1,5 @@
+import sys; sys.dont_write_bytecode = True
+
 from parser import *
 from arpilnik import *
 
@@ -45,36 +47,24 @@ def get_test_exps():
 OBJDUMP_CMD = b"clear;objdump -b binary -m i386:x64-32 -M intel -D main \
         --start-address=0xb0 | more"
 
+R2_CMD = b"clear;r2 -d main -c 'pd 25 @ entry0' -q"
 def write_fifo():
-    fifo = open("in0.fifo", "wb")
-    fifo.write(OBJDUMP_CMD)
+    fifo = open("stuff/in0.fifo", "wb")
+    fifo.write(R2_CMD)
     fifo.close()
+
+f_code = \
+'''
+    a=2+3
+'''
+
 
 def main():
 
-    f = [
-         #'a=20',
-         #'2+a'
-         'a=5',
-         'b=32',
-
-        ]
-
-    gen = Code_Generator_x86_64()
-    gen.init_binary()
-
-    for line in f:
-        rpn = infix_to_rpn(line)
-        gen.compile_line(rpn)
-        print(rpn)
-
-    gen.add_exit_seq()
-
-    write_fifo()
+    for line in f_code.split():
+        rpn_exp = infix_to_rpn(line)
+        print(line, rpn_exp)
     
-    out_file = open("main", "wb")
-    out_file.write(gen.get_code())    
-
 if __name__ == "__main__":
     main()
 
