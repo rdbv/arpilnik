@@ -60,7 +60,7 @@ f_code = \
 
 
 def main():
-    t = 1
+    t = 2
     for line in f_code.split():
         rpn_exp = infix_to_rpn(line)
         print(line, rpn_exp)
