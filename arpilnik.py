@@ -1,5 +1,9 @@
-from struct import *
+from struct import pack
 from parser import operators, is_valid_varname
+
+embd_functions = [
+    "$t", 
+]
 
 # Basic ELF64 header
 # Only for now, ELF soon will be rewritten

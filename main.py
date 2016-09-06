@@ -3,8 +3,8 @@ import sys; sys.dont_write_bytecode = True
 from parser import *
 from arpilnik import *
 
-from unicorn import *
-from unicorn.x86_const import *
+#from unicorn import *
+#from unicorn.x86_const import *
 
 # main
 
@@ -48,23 +48,39 @@ OBJDUMP_CMD = b"clear;objdump -b binary -m i386:x64-32 -M intel -D main \
         --start-address=0xb0 | more"
 
 R2_CMD = b"clear;r2 -d main -c 'pd 25 @ entry0' -q"
+
 def write_fifo():
     fifo = open("stuff/in0.fifo", "wb")
     fifo.write(R2_CMD)
     fifo.close()
 
-f_code = \
-'''
-    a=2+3
-'''
 
+f_code = [
+    "c=2",
+
+]
 
 def main():
-    t = 2
-    for line in f_code.split():
-        rpn_exp = infix_to_rpn(line)
-        print(line, rpn_exp)
-    
+    exp = "0 - 2"
+    syn_anal = Syntax_Analyzer()
+    out = syn_anal.parse(exp)
+    print(out)
+
+    pass
+
+    '''
+    cg = Code_Generator_x86_64()
+    cg.init_binary()
+    for line in f_code:
+        cg.compile_line(infix_to_rpn(line))
+
+    cg.add_exit_seq()
+
+    f = open("stuff/main","wb")
+    f.write(cg.get_code())
+    write_fifo()
+    '''
+
 if __name__ == "__main__":
     main()
 
