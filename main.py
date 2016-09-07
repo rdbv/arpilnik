@@ -1,7 +1,7 @@
 import sys; sys.dont_write_bytecode = True
 
 from parser import *
-from arpilnik import *
+#from arpilnik import *
 
 #from unicorn import *
 #from unicorn.x86_const import *
@@ -17,6 +17,7 @@ def step(emu, addr, size, user_data):
 
     if rip == user_data:
         emu.emu_stop()
+
 
     print("RAX:%x\tRBX:%x\tRCX:%x\tRDX:%x\tRIP:%x" % (rax, rbx, rcx, rdx, rip) )
     
@@ -54,32 +55,31 @@ def write_fifo():
     fifo.write(R2_CMD)
     fifo.close()
 
-
-f_code = [
-    "c=2",
-
-]
+def get_file(name):
+    try:
+        f = open(name, "r")
+    except:
+        print("Cannot open file: %s" % name)
+        exit(0)
+    content = f.read().split('\n')
+    content = [x for x in content if x]
+    return content
 
 def main():
-    exp = "0 - 2"
-    syn_anal = Syntax_Analyzer()
-    out = syn_anal.parse(exp)
-    print(out)
+    f = get_file("stuff/prog")
 
-    pass
+    parser = Parser()
 
-    '''
-    cg = Code_Generator_x86_64()
-    cg.init_binary()
-    for line in f_code:
-        cg.compile_line(infix_to_rpn(line))
+    i = 0
+    for line in f:
+        val = parser.parse(line, i)
+        if val != None:
+            print("%s = %d" % (line, val))
+        else:
+            print("%s (failed to compile)" % line)
+        i += 1
 
-    cg.add_exit_seq()
 
-    f = open("stuff/main","wb")
-    f.write(cg.get_code())
-    write_fifo()
-    '''
 
 if __name__ == "__main__":
     main()

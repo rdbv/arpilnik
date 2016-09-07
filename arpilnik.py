@@ -1,5 +1,5 @@
 from struct import pack
-from parser import operators, is_valid_varname
+from parser import operators
 
 embd_functions = [
     "$t", 
