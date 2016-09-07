@@ -1,9 +1,4 @@
 from struct import pack
-from parser import operators
-
-embd_functions = [
-    "$t", 
-]
 
 # Basic ELF64 header
 # Only for now, ELF soon will be rewritten
@@ -116,72 +111,4 @@ class Assembler_x86_64:
 
     def modrm(self, mod, reg, rm):
         return pack("<B", mod << 6 | reg << 3 | rm)
-
-class Code_Generator_x86_64:
-    def init_binary(self):
-        self.asm = Assembler_x86_64()
-        self.elf_file = Elf64_File()
-        self.data = b''
-        self.exit_seq = self.asm.pop_reg32('bx') + b'\xb8\x01\x00\x00\x00' + b'\xcd\x80'
-        self.var_list = []
-        self.var_begin_addr = 0x90000000 
-
-    def compile_line(self, line):
-        self.compile_exp(line)        
-
-    def add_exit_seq(self):
-        self.data += self.exit_seq
-
-    def compile_exp(self, rpn_exp):
-        i = 0
-        while i < len(rpn_exp):
-            token = rpn_exp[i]
-            if token in operators:
-                self.data += self.asm.pop_reg32('ax')
-                self.data += self.asm.pop_reg32('bx')
-                if token == '-':
-                    self.data += self.asm.sub_reg_reg64('bx', 'ax')
-                    self.data += self.asm.push_reg32('bx')
-                if token == '+':
-                    self.data += self.asm.add_reg_reg64('bx', 'ax')
-                    self.data += self.asm.push_reg32('bx')
-            else:
-                # Assignment of <var>=
-                if is_valid_varname(token) and rpn_exp[i+1] == '=':
-                    varname = token
-                    var_vaddr = self.var_begin_addr + (len(self.var_list) * 8)
-                    var_num = len(self.var_list)
-                    var_val = int(rpn_exp[i+2])
-                    self.var_list.append([varname, var_vaddr, var_val])
-                    self.data += self.asm.mov_reg_imm64('ax', var_vaddr)
-                    self.data += self.asm.mov_reg_imm64('bx', var_val)
-                    self.data += self.asm.mov_regmem8_reg64('ax', 'bx', 0)
-                    i += 3
-                    continue
-                elif is_valid_varname(token):
-                    # Use of variable
-                    var = self.get_variable_data(token)
-                    self.data += self.asm.mov_reg_imm64('ax', var[1])
-                    self.data += self.asm.push_addr64('ax')
-                else:
-                    # Digit
-                    self.data += self.asm.push_imm_32(int(token))
-            i += 1        
-
-    def get_raw_code(self):
-        return self.data
-
-    def get_code(self):
-        return self.elf_file.get_header() + self.data
-
-    def get_variable_data(self, varname):
-        for v in self.var_list:
-            if varname == v[0]:
-                return v
-        raise RuntimeError("Nieee maaa!")
-
-    def print_varlist(self):
-        for v in self.var_list:
-            print(v[0], hex(v[1]), v[2])
-
 
