@@ -1,114 +1,129 @@
-from struct import pack
+from asm import *
+from struct import pack, unpack
+from collections import OrderedDict
 
-# Basic ELF64 header
-# Only for now, ELF soon will be rewritten
-class Elf64_File:
-    file_data = b'' 
-    code = b'' 
-    basic_addr = 0x80000000
+class ElfFile64:
+    base_addr = 0x80000000
+    data = b''
+    phdrs = OrderedDict()
 
-    def __init__(self, code = ""):
-        self.code = code
-        self.ep = self.basic_addr + 0x40 + 0x38*2 # entry point
-        # E_IDENT
-        self.file_data += b'\x7fELF'  
-        self.file_data += b"\x02\x01\x01\x00"
-        self.file_data += pack("<q", 0)
-        # EHDR
-        self.file_data += pack("<h", 2)        # type
-        self.file_data += pack("<h", 0x3e)     # machine
-        self.file_data += pack("<i", 0x1)      # version
-        self.file_data += pack("<q", self.ep)  # entry
-        self.file_data += pack("<q", 0x40)     # phoff
-        self.file_data += pack("<q", 0)        # shoff
-        self.file_data += pack("<i", 0)        # flags
-        self.file_data += pack("<h", 0x40)     # ehsize
-        self.file_data += pack("<h", 0x38)     # phentsize
-        self.file_data += pack("<h", 2)        # phnum
-        self.file_data += pack("<h", 0)        # shentsize
-        self.file_data += pack("<h", 0)        # shnum
-        self.file_data += pack("<h", 0)        # shstrndx
-        # PHDR
-        self.file_data += pack("<i", 1)                     # type
-        self.file_data += pack("<i", 7)                     # flags
-        self.file_data += pack("<q", 0)                     # offset
-        self.file_data += pack("<q", self.basic_addr)       # vaddr
-        self.file_data += pack("<q", self.basic_addr)       # paddr
-        self.file_data += pack("<q", 0x40+0x38+len(code))   # filesz
-        self.file_data += pack("<q", 0x40+0x38+len(code))   # memsz
-        self.file_data += pack("<q", 0)                     # align
-        # PHDR_DATA (VARMEM)
-        self.file_data += pack("<i", 1)                     # type
-        self.file_data += pack("<i", 6)                     # flags
-        self.file_data += pack("<q", 0)                     # offset
-        self.file_data += pack("<q", self.basic_addr + 0x10000000)       # vaddr
-        self.file_data += pack("<q", self.basic_addr)       # paddr
-        self.file_data += pack("<q", 0)   # filesz
-        self.file_data += pack("<q", 0x100)   # memsz
-        self.file_data += pack("<q", 0)                     # align
+    ehdr64_data = OrderedDict((
+            ["TYPE"     , ["<h", 0x2]],
+            ["MACHINE"  , ["<h", 0x3e]], 
+            ["VERSION"  , ["<i", 0x1]],
+            ["ENTRY"    , ["<q", 0x0]],
+            ["PHOFF"    , ["<q", 0x40]],
+            ["SHOFF"    , ["<q", 0x0]],
+            ["FLAGS"    , ["<i", 0x0]],
+            ["EHSIZE"   , ["<h", 0x40]],
+            ["PHENTSIZE", ["<h", 0x38]],
+            ["PHNUM"    , ["<h", 1]],
+            ["SHENTSIZE", ["<h", 0]],
+            ["SHNUM"    , ["<h", 0]],
+            ["SHSTRNDX" , ["<h", 0]]
+        ))
 
-    def get_header(self):
-        return self.file_data
+    def write_data(self):
+
+        self.data = b'\x7fELF' + b'\x02\x01\x01\x00' + pack("<q", 0)
+        for v in self.ehdr64_data.items():
+            self.data += pack(v[1][0], v[1][1])
+
+        for v in self.phdrs.items():
+            for n in v[1].items():
+                #print(n)
+                self.data += pack(n[1][0], n[1][1])
+
+        #exit(0)
+
+
+    def add_phdr(self, name):
+        self.phdrs[name] = OrderedDict((
+            ["TYPE"     , ["<i", 1]],
+            ["FLAGS"    , ["<i", 7]],
+            ["OFFSET"   , ["<q", 0]],
+            ["VADDR"    , ["<q", 0]],
+            ["PADDR"    , ["<q", 0]],
+            ["FILESZ"   , ["<q", 0]],
+            ["MEMSZ"    , ["<q", 0]],
+            ["ALIGN"    , ["<q", 0]]
+        ))
+
+    def get_phdrs(self):
+        return self.phdrs
+    
+    def set_phdr_value(self, phdr_name, phdr_field, phdr_value):
+        self.phdrs[phdr_name][phdr_field][1] = phdr_value
+    
+    def set_ehdr_value(self, ehdr_field, ehdr_value):
+        self.ehdr64_data[ehdr_field][1] = ehdr_value
+
+    def __init__(self):
+        self.add_phdr('.text')
+        self.add_phdr('.data')
+
+        self.set_ehdr_value('PHNUM', len(self.phdrs))
+
+        self.set_phdr_value('.text', 'VADDR', self.base_addr)
+        self.set_phdr_value('.text', 'FILESZ', 0x40 + 0x38 * len(self.phdrs) + 0x200 )
+        self.set_phdr_value('.text', 'MEMSZ', 0x40 + 0x38 * len(self.phdrs) + 0x200 )
+       
+        self.set_phdr_value('.data', 'FLAGS', 6)
+        self.set_phdr_value('.data', 'VADDR', 0x90000000)
+        self.set_phdr_value('.data', 'MEMSZ', 0x100)
 
     def get_data(self):
-        return self.file_data + self.code
+        return self.data
 
+class CodeGenerator:
+    def __init__(self, runtime_lib_size):
+        self.asm = Asm()
+        self.asm.current_position = runtime_lib_size
+        self.vars = {}
+        self.asm.mov_r32_imm32(esi, 0x90000000, "<I")
+        self.asm.xor_r32_r32(edi, edi)
 
-NO_DISPLACEMENT_MOD = 0b00
-DISPLACEMENT_BYTE_MOD = 0b01
-DISPLACEMENT_WORD_MOD = 0b10
-REGISTER_MOD = 0b11
+    def compile_line(self, rpn_exp):
+        print("COMPILING: ", [x.value for x in rpn_exp])
 
-REG_RM_AX = 0b000
-REG_RM_CX = 0b001
-REG_RM_DX = 0b010
-REG_RM_BX = 0b011
+        assigned_var = rpn_exp[0]
 
-''' Simple class for assembling, ofc support only needed instructions '''
-class Assembler_x86_64:
-    # rex prefixes
-    rex_w = b'\x48'
-    regtab = {
-            'ax' : REG_RM_AX,
-            'cx' : REG_RM_CX,
-            'dx' : REG_RM_DX,
-            'bx' : REG_RM_BX
-    }
+        for token in rpn_exp[2:]:
+            if token.type in ['ADD']:
+                #self.asm.nop(1)
+                self.asm.pop_reg64(eax)
+                self.asm.add_esp_mem_eax()
+                #self.asm.nop(1)
+            
+            if token.type == 'NUM':
+                self.asm.push_imm32(int(token.value))
 
-    def push_reg32(self, reg_str):
-        ops_push = {'ax' : b'\x50', 'cx' : b'\x51', 'dx' : b'\x52', 'bx' : b'\x53' }
-        return ops_push[reg_str]
+            if token.type == 'VAR':
+                self.var_load(token.value)
 
-    def pop_reg32(self, reg_str):
-        ops_pop = {'ax' : b'\x58', 'cx' : b'\x59', 'dx' : b'\x5a', 'bx' : b'\x5b' }
-        return ops_pop[reg_str]
+        self.var_assign(rpn_exp[0].value)
 
-    def push_imm_32(self, val):
-        return b'\x68' + pack("<i", val)
+    def var_assign(self, var_name):
+        if var_name not in self.vars:
+            self.vars[var_name] = len(self.vars)
 
-    def push_addr64(self, reg):
-        ops_push = {'ax' : b'\x30', 'cx' : b'\x31', 'dx' : b'\x32', 'bx' : b'\x33'}
-        return b'\xff' + ops_push[reg]
+        self.asm.mov_ebx_mem_rsp()
+        self.asm.mov_dil_imm8(self.vars[var_name])        
+        self.asm.mov_rsi_rdi_4_ebx()
+       
+    def var_load(self, var_name):
+        print(self.vars, var_name)
+        if var_name not in self.vars:
+            print("Oops!")
+            exit(0)
 
-    def add_reg_reg64(self, dest, src):
-        return self.rex_w + b'\x01' + self.modrm(REGISTER_MOD, self.regtab[src], self.regtab[dest])
-    
-    def sub_reg_reg64(self, dest, src):
-        return self.rex_w + b'\x29' + self.modrm(REGISTER_MOD, self.regtab[src], self.regtab[dest])
-    
-    def mov_reg_imm64(self, dest, imm):
-        ops_mov = {'ax' : b'\xb8', 'cx' : b'\xb9', 'dx' : b'\xba', 'bx' : b'\xbb'}
-        return self.rex_w + ops_mov[dest] + pack("<Q", imm)
+        self.asm.mov_dil_imm8(self.vars[var_name])
+        self.asm.push_rsi_rdi_4()
 
-    def mov_reg_reg64(self, dest, src):
-        return self.rex_w + b'\x89' + self.modrm(REGISTER_MOD, self.regtab[src], self.regtab[dest])
-    
-    def mov_regmem8_reg64(self, dest, src, dis):
-        out = self.rex_w + b'\x89'
-        out += self.modrm(DISPLACEMENT_BYTE_MOD, self.regtab[src], self.regtab[dest])
-        out += pack("<B", dis) 
-        return out 
+    def get_code(self):
+        self.asm.pop_reg64(eax)
+        self.asm.call_rel32(4)
+        self.asm.jmp_rel32(0)
+        return self.asm.get_code()
 
-    def modrm(self, mod, reg, rm):
-        return pack("<B", mod << 6 | reg << 3 | rm)
 
