@@ -23,6 +23,7 @@ class Lexer:
          r'(?P<WHILE_KEYWORD>\bwhile\b)', 
          r'(?P<DO_KEYWORD>\bdo\b)', 
          r'(?P<BLANK_KEYWORD>\bblank\b)', 
+         r'(?P<PRINT_KEYWORD>\bprint\b)',
 
          # Other symbols
          r'(?P<COMMENT_BEGIN>\/\*)',
@@ -30,14 +31,20 @@ class Lexer:
          r'(?P<SEMICOLON>;)', 
          r'(?P<COMMA>,)', 
          r'(?P<SET_VAR>:=)', 
+         # Comparision operators
          r'(?P<EQL_CMP>==)', 
+         r'(?P<NEQ_CMP>!=)',
+         r'(?P<LTE_CMP><=)',
+         r'(?P<GTE_CMP>>=)',
          r'(?P<LT_CMP><)',
+         r'(?P<GT_CMP>>)',
          r'(?P<NUM>\d+)', 
          r'(?P<VARNAME>[_A-Za-z][_a-zA-Z0-9]*)', 
          r'(?P<ADD>\+)', 
          r'(?P<SUB>-)', 
          r'(?P<MUL>\*)', 
          r'(?P<DIV>/)', 
+         r'(?P<MOD>%)',
          r'(?P<EQUAL>=)', 
          r'(?P<LPAREN>\()', 
          r'(?P<RPAREN>\))', 
@@ -145,6 +152,7 @@ class Parser:
         out.append(self.factor())
         while self.accept('MUL'): out.append(['MUL', self.factor()])
         while self.accept('DIV'): out.append(['DIV', self.factor()])
+        while self.accept('MOD'): out.append(['MOD', self.factor()])
 
         return out
 
@@ -164,11 +172,10 @@ class Parser:
     def condition(self):
         cond = ['CONDITION']
         cond.append(self.expression())
-        if self.accept('EQL_CMP'):
-            cond.append('EQL_CMP')
-            cond.append(self.expression())
-        elif self.accept('LT_CMP'):
-            cond.append('LT_CMP')
+        if self.accept('EQL_CMP') or self.accept('NEQ_CMP') or \
+           self.accept('LTE_CMP') or self.accept('GTE_CMP') or \
+           self.accept('LT_CMP') or self.accept('GT_CMP'):
+            cond.append(self.current_token.type)
             cond.append(self.expression())
         else:
             self.ip.error("Condition error at", self.get_line_number())
@@ -179,6 +186,10 @@ class Parser:
         out = []
         if self.accept('BLANK_KEYWORD'):
             out.append('BLANK')
+        elif self.accept('PRINT_KEYWORD'):
+            out.append('PRINT')
+            out.append(self.next_token.value)
+            self.expect('VARNAME') 
         elif self.accept('VARNAME'):
             out.append("SET")
             out.append(self.current_token.value)
