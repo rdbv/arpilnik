@@ -4,12 +4,11 @@ from bisect import bisect
 
 Token = collections.namedtuple('Token', ['type', 'value'])
 
-''' 
-    Just lexer, splitting input stream into tokens
-    a = 2 -> [Token('VARNAME', a), Token('EQL', =), Token('NUM', 2)]
-'''
 class Lexer:
-
+    ''' 
+        Just lexer, splitting input stream into tokens
+        a = 2 -> [Token('VARNAME', a), Token('EQL', =), Token('NUM', 2)]
+    '''
     tokens_regexp = [
          # Keywords
          r'(?P<CONST_KEYWORD>\bconst\b)', 
@@ -31,6 +30,7 @@ class Lexer:
          r'(?P<SEMICOLON>;)', 
          r'(?P<COMMA>,)', 
          r'(?P<SET_VAR>:=)', 
+
          # Comparision operators
          r'(?P<EQL_CMP>==)', 
          r'(?P<NEQ_CMP>!=)',
@@ -38,6 +38,8 @@ class Lexer:
          r'(?P<GTE_CMP>>=)',
          r'(?P<LT_CMP><)',
          r'(?P<GT_CMP>>)',
+
+         # Basic symbols
          r'(?P<NUM>\d+)', 
          r'(?P<VARNAME>[_A-Za-z][_a-zA-Z0-9]*)', 
          r'(?P<ADD>\+)', 
@@ -62,7 +64,7 @@ class Lexer:
             last_token = token
 
             # Skip c-style comments 
-            # /* ololololoolol */
+            # /* spamspamspamspam  */
             if token.type == 'COMMENT_BEGIN':
                 comment = True
                 continue
@@ -75,8 +77,9 @@ class Lexer:
             if token.type != 'WS':
                 yield token
             
-''' Help class for printing info in colors '''
 class InfoPrinter:
+    ''' Helper class for printing info in colors '''
+
     ENDCOLOR = '\033[0m'
     YELLOW = '\033[93m'
     GREEN = '\033[92m'
@@ -95,8 +98,9 @@ class InfoPrinter:
     def ok(self, text):
         print(self.GREEN + "[OK] " + self.ENDCOLOR + text)
 
-''' Recursive descent parser for PL/0 language '''
 class Parser:
+    ''' Recursive descent parser for PL/0 language '''
+
     def __init__(self):
         self.ip = InfoPrinter()
         self.lexer = Lexer()
@@ -150,9 +154,8 @@ class Parser:
         out = ['TERM']
 
         out.append(self.factor())
-        while self.accept('MUL'): out.append(['MUL', self.factor()])
-        while self.accept('DIV'): out.append(['DIV', self.factor()])
-        while self.accept('MOD'): out.append(['MOD', self.factor()])
+        while self.accept('MUL') or self.accept('DIV') or self.accept('MOD'):
+            out.append([self.current_token.type, self.term()])
 
         return out
 
@@ -164,8 +167,8 @@ class Parser:
             out[1] = 'MINUS'
 
         out.append(self.term())
-        while self.accept('ADD'): out.append(['ADD', self.term()])
-        while self.accept('SUB'): out.append(['SUB', self.term()])
+        while self.accept('ADD') or self.accept('SUB'):
+            out.append([self.current_token.type, self.term()])
 
         return out
 
@@ -284,7 +287,11 @@ class Parser:
         return block
 
     def program(self):
-        return ['PROGRAM', self.block()]
+        program = self.block()
+        if self.fail:
+            return None
+        else:
+            return ['PROGRAM', program]
 
 
 ''' 
@@ -299,4 +306,16 @@ def print_ast(l, sp = 0):
             print_ast(val, sp + 2)
     else:
         print(' ' * sp + l)
-        
+       
+def get_const(ast):
+    return ast[1][1]
+
+def get_vars(ast):
+    return ast[1][2]
+
+def get_procs(ast):
+    return ast[1][3]
+
+def get_block(ast):
+    return ast[1][4]
+
