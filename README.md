@@ -85,3 +85,66 @@ section .data
     global_var_var0 dd 0;  
 ```
 
+gcd.pl0
+```
+proc_gcd:
+    push ebp;  
+    mov ebp, esp;  
+    sub esp, 8;  
+    mov eax, dword [global_var_a];  
+    mov dword [ebp-4], eax;  
+    mov eax, dword [global_var_b];  
+    mov dword [ebp-8], eax;  
+    ; WHILE ;  
+W1:
+    mov eax, dword [ebp-4];  
+    mov [spill_var_0], eax;  
+    mov eax, dword [ebp-8];  
+    cmp [spill_var_0], eax;  
+    je E1;  
+B1:
+    ; IF ;  
+    mov eax, dword [ebp-4];  
+    mov [spill_var_0], eax;  
+    mov eax, dword [ebp-8];  
+    cmp [spill_var_0], eax;  
+    jge L1;  
+    ; ELSE ;  
+    mov eax, dword [ebp-8];  
+    sub eax, dword [ebp-4];  
+    mov dword [ebp-8], eax;  
+L1:
+    ; IF ;  
+    mov eax, dword [ebp-8];  
+    mov [spill_var_0], eax;  
+    mov eax, dword [ebp-4];  
+    cmp [spill_var_0], eax;  
+    jge L2;  
+    ; ELSE ;  
+    mov ebx, dword [ebp-4];  
+    sub ebx, dword [ebp-8];  
+    mov dword [ebp-4], ebx;  
+L2:
+    jmp W1;  
+E1:
+    ; INEND ;  
+    mov eax, dword [ebp-4] ; VAR_ARG f;  
+    call print_num_nl;  
+    add esp, 8;  
+    pop ebp;  
+    ret;  
+
+
+_start:
+    mov eax, 512;  
+    mov dword [global_var_a], eax;  
+    mov eax, 10004;  
+    mov dword [global_var_b], eax;  
+    call proc_gcd;  
+    call exit;  
+
+section .data
+    spill_var_0 dd 0;  
+    global_var_a dd 0;  
+    global_var_b dd 0;  
+```

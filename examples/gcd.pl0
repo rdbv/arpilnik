@@ -1,0 +1,21 @@
+var a, b;
+
+/* Greatest common divisor */
+proc gcd;
+var f, g;
+begin
+    f := a;
+    g := b;
+    while f != g do begin   
+        if f < g then g := g - f;
+        if g < f then f := f - g
+    end;
+    /* print gcd */
+    print f
+end;
+
+begin
+    a := 512;
+    b := 10004;
+    call gcd
+end

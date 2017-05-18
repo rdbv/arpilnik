@@ -1,6 +1,9 @@
+/* Variables, constants not supported for now */
 var var0;
 
+/* Main block */
 begin
     var0 := 666;
+    /* After last instruction dont write ; (semicolon) */
     print var0
 end

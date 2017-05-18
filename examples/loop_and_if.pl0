@@ -1,20 +1,42 @@
-var var0;
+/* Global variables, can be used as arguments */
+var var0, var1;
 
+/* Procedure */
 proc loopy;
+/* Local variables */
 var i;
 begin
     while i < 100 do 
     begin
         i := i + 1;
-        var0 := var0 + 2;
-        print i
+        var0 := var0 + 2
+        /* Without ; */
     end
+    /* While is only instruction in this block, so without semicolon after end */
 end;
+
+proc max;
+begin
+    if var0 > var1 then 
+    begin
+        print var0
+    end; /* semicolon */
+
+    if var1 > var0 then
+    begin
+        print var1
+    end; /* semicolon */
+
+    if var0 == var1 then
+    begin
+        print var0
+    end /* no semicolon */
+end;
+
 
 begin
     call loopy;
-    if var0 > 10 then
-    begin
-        print var0
-    end
+    print var0;
+    var1 := 300;
+    call max
 end

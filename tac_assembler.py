@@ -105,7 +105,7 @@ class TACAssembler:
         lhs, rhs, op, body = node[1][1], node[1][3], node[1][2], node[2]
         self.if_count += 1
         self.if_stack.append(self.if_count)
-        print(self.if_stack)
+
         if body[0] != 'BEGIN':
             body = ['BEGIN', body]
        
