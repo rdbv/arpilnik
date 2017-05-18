@@ -39,7 +39,7 @@ class TACAssembler:
         assert False
 
     def compile_main(self, code):
-        self.code += '_start:\n'
+        self.code += '\n_start:\n'
 
         for instr in code[1:]:
             self.compile(instr)
@@ -286,7 +286,7 @@ class TACAssembler:
         Data
     '''
     def emit_spill_variables(self):
-        self.emit('section .data')
+        self.code += '\nsection .data\n'
         for s in self.spills:
             self.emit( ('spill_var_%s' % s[2:]) + ' dd 0')
     

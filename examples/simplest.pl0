@@ -1,0 +1,6 @@
+var var0;
+
+begin
+    var0 := 666;
+    print var0
+end
