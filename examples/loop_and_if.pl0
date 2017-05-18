@@ -1,0 +1,20 @@
+var var0;
+
+proc loopy;
+var i;
+begin
+    while i < 100 do 
+    begin
+        i := i + 1;
+        var0 := var0 + 2;
+        print i
+    end
+end;
+
+begin
+    call loopy;
+    if var0 > 10 then
+    begin
+        print var0
+    end
+end
